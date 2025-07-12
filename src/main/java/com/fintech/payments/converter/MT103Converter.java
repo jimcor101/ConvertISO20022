@@ -16,9 +16,12 @@
 package com.fintech.payments.converter;
 
 import com.fintech.payments.model.ConversionResult;
+import com.fintech.payments.security.SecurityUtils;
+import com.fintech.payments.security.SecureXMLBuilder;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.function.Consumer;
@@ -93,9 +96,21 @@ public class MT103Converter {
      */
     public ConversionResult convert(File inputFile, File outputFile, Consumer<String> progressCallback) {
         try {
-            progressCallback.accept("Reading MT103 file: " + inputFile.getName());
+            progressCallback.accept("Validating input file security...");
             
-            String mt103Content = Files.readString(inputFile.toPath());
+            // Validate input file path and content for security
+            Path inputPath = SecurityUtils.validateAndCanonicalizePath(inputFile.getAbsolutePath());
+            SecurityUtils.validateFileContent(inputFile);
+            
+            // Validate output file path
+            Path outputPath = SecurityUtils.validateAndCanonicalizePath(outputFile.getAbsolutePath());
+            
+            // Log security event
+            SecurityUtils.logSecurityEvent("MT103 conversion started", 
+                "Input: " + inputFile.getName() + ", Output: " + outputFile.getName());
+            
+            progressCallback.accept("Reading MT103 file: " + inputFile.getName());
+            String mt103Content = Files.readString(inputPath);
             
             progressCallback.accept("Parsing MT103 fields...");
             MT103Message mt103 = parseMT103(mt103Content);
@@ -104,13 +119,21 @@ public class MT103Converter {
             String iso20022Xml = convertToISO20022(mt103);
             
             progressCallback.accept("Writing output file: " + outputFile.getName());
-            Files.writeString(outputFile.toPath(), iso20022Xml);
+            Files.writeString(outputPath, iso20022Xml);
+            
+            // Log successful conversion
+            SecurityUtils.logSecurityEvent("MT103 conversion completed successfully", 
+                "Output: " + outputFile.getName());
             
             progressCallback.accept("Conversion completed successfully");
             return ConversionResult.success(outputFile, "MT103", "pain.001.001.03", 1);
             
+        } catch (SecurityException e) {
+            SecurityUtils.logSecurityEvent("MT103 conversion security violation", e.getMessage());
+            return ConversionResult.failure(SecurityUtils.sanitizeErrorMessage(e.getMessage()));
         } catch (Exception e) {
-            return ConversionResult.failure("MT103 conversion error: " + e.getMessage());
+            SecurityUtils.logSecurityEvent("MT103 conversion error", e.getClass().getSimpleName());
+            return ConversionResult.failure(SecurityUtils.sanitizeErrorMessage(e.getMessage()));
         }
     }
 
@@ -125,13 +148,23 @@ public class MT103Converter {
      * @param content the complete MT103 message text
      * @return MT103Message object containing parsed field values
      */
-    private MT103Message parseMT103(String content) {
+    private MT103Message parseMT103(String content) throws SecurityException {
+        if (content == null || content.trim().isEmpty()) {
+            throw new SecurityException("MT103 content cannot be null or empty");
+        }
+        
+        // Validate input content for security
+        SecurityUtils.validateInputForInjection(content, "MT103 content");
+        
         MT103Message message = new MT103Message();
         
         Matcher matcher = FIELD_PATTERN.matcher(content);
         while (matcher.find()) {
             String fieldCode = matcher.group(1);
-            String fieldValue = matcher.group(2).trim();
+            String fieldValue = matcher.group(2) != null ? matcher.group(2).trim() : "";
+            
+            // Validate each field for security
+            SecurityUtils.validateInputForInjection(fieldValue, "MT103 field " + fieldCode);
             
             switch (fieldCode) {
                 case "20":
@@ -192,69 +225,92 @@ public class MT103Converter {
      * @param mt103 the parsed MT103 message data
      * @return complete ISO 20022 XML as a string
      */
-    private String convertToISO20022(MT103Message mt103) {
+    private String convertToISO20022(MT103Message mt103) throws Exception {
         String msgId = "MSG" + System.currentTimeMillis();
         String creationDateTime = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         
-        StringBuilder xml = new StringBuilder();
-        xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-        xml.append("<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.03\">\n");
-        xml.append("  <CstmrCdtTrfInitn>\n");
-        xml.append("    <GrpHdr>\n");
-        xml.append("      <MsgId>").append(msgId).append("</MsgId>\n");
-        xml.append("      <CreDtTm>").append(creationDateTime).append("</CreDtTm>\n");
-        xml.append("      <NbOfTxs>1</NbOfTxs>\n");
-        xml.append("      <CtrlSum>").append(mt103.amount != null ? mt103.amount : "0").append("</CtrlSum>\n");
-        xml.append("      <InitgPty>\n");
-        xml.append("        <Nm>ConvertISO20022</Nm>\n");
-        xml.append("      </InitgPty>\n");
-        xml.append("    </GrpHdr>\n");
-        xml.append("    <PmtInf>\n");
-        xml.append("      <PmtInfId>").append(mt103.transactionReference != null ? mt103.transactionReference : "PMT001").append("</PmtInfId>\n");
-        xml.append("      <PmtMtd>TRF</PmtMtd>\n");
-        xml.append("      <NbOfTxs>1</NbOfTxs>\n");
-        xml.append("      <CtrlSum>").append(mt103.amount != null ? mt103.amount : "0").append("</CtrlSum>\n");
-        xml.append("      <ReqdExctnDt>").append(formatDate(mt103.valueDate)).append("</ReqdExctnDt>\n");
-        xml.append("      <Dbtr>\n");
-        xml.append("        <Nm>").append(escapeXml(mt103.orderingCustomer != null ? mt103.orderingCustomer : "Unknown Debtor")).append("</Nm>\n");
-        xml.append("      </Dbtr>\n");
-        xml.append("      <DbtrAcct>\n");
-        xml.append("        <Id>\n");
-        xml.append("          <Othr>\n");
-        xml.append("            <Id>UNKNOWN</Id>\n");
-        xml.append("          </Othr>\n");
-        xml.append("        </Id>\n");
-        xml.append("      </DbtrAcct>\n");
-        xml.append("      <CdtTrfTxInf>\n");
-        xml.append("        <PmtId>\n");
-        xml.append("          <EndToEndId>").append(mt103.transactionReference != null ? mt103.transactionReference : "E2E001").append("</EndToEndId>\n");
-        xml.append("        </PmtId>\n");
-        xml.append("        <Amt>\n");
-        xml.append("          <InstdAmt Ccy=\"").append(mt103.currency != null ? mt103.currency : "USD").append("\">").append(mt103.amount != null ? mt103.amount : "0").append("</InstdAmt>\n");
-        xml.append("        </Amt>\n");
-        xml.append("        <Cdtr>\n");
-        xml.append("          <Nm>").append(escapeXml(mt103.beneficiaryCustomer != null ? mt103.beneficiaryCustomer : "Unknown Creditor")).append("</Nm>\n");
-        xml.append("        </Cdtr>\n");
-        xml.append("        <CdtrAcct>\n");
-        xml.append("          <Id>\n");
-        xml.append("            <Othr>\n");
-        xml.append("              <Id>UNKNOWN</Id>\n");
-        xml.append("            </Othr>\n");
-        xml.append("          </Id>\n");
-        xml.append("        </CdtrAcct>\n");
-        
-        if (mt103.remittanceInformation != null && !mt103.remittanceInformation.trim().isEmpty()) {
-            xml.append("        <RmtInf>\n");
-            xml.append("          <Ustrd>").append(escapeXml(mt103.remittanceInformation)).append("</Ustrd>\n");
-            xml.append("        </RmtInf>\n");
+        try (SecureXMLBuilder builder = new SecureXMLBuilder()) {
+            builder.startDocument()
+                   .startElement("Document")
+                   .addAttribute("xmlns", "urn:iso:std:iso:20022:tech:xsd:pain.001.001.03")
+                   .startElement("CstmrCdtTrfInitn")
+                   
+                   // Group Header
+                   .startElement("GrpHdr")
+                   .addElement("MsgId", msgId)
+                   .addElement("CreDtTm", creationDateTime)
+                   .addElement("NbOfTxs", "1")
+                   .addElement("CtrlSum", mt103.amount != null ? mt103.amount : "0")
+                   .startElement("InitgPty")
+                   .addElement("Nm", "ConvertISO20022")
+                   .endElement() // InitgPty
+                   .endElement() // GrpHdr
+                   
+                   // Payment Information
+                   .startElement("PmtInf")
+                   .addElement("PmtInfId", mt103.transactionReference != null ? mt103.transactionReference : "PMT001")
+                   .addElement("PmtMtd", "TRF")
+                   .addElement("NbOfTxs", "1")
+                   .addElement("CtrlSum", mt103.amount != null ? mt103.amount : "0")
+                   .addElement("ReqdExctnDt", formatDate(mt103.valueDate))
+                   
+                   // Debtor
+                   .startElement("Dbtr")
+                   .addElement("Nm", mt103.orderingCustomer != null ? mt103.orderingCustomer : "Unknown Debtor")
+                   .endElement() // Dbtr
+                   
+                   // Debtor Account
+                   .startElement("DbtrAcct")
+                   .startElement("Id")
+                   .startElement("Othr")
+                   .addElement("Id", "UNKNOWN")
+                   .endElement() // Othr
+                   .endElement() // Id
+                   .endElement() // DbtrAcct
+                   
+                   // Credit Transfer Transaction Information
+                   .startElement("CdtTrfTxInf")
+                   .startElement("PmtId")
+                   .addElement("EndToEndId", mt103.transactionReference != null ? mt103.transactionReference : "E2E001")
+                   .endElement() // PmtId
+                   
+                   // Amount
+                   .startElement("Amt")
+                   .startElement("InstdAmt")
+                   .addAttribute("Ccy", mt103.currency != null ? mt103.currency : "USD")
+                   .addText(mt103.amount != null ? mt103.amount : "0")
+                   .endElement() // InstdAmt
+                   .endElement() // Amt
+                   
+                   // Creditor
+                   .startElement("Cdtr")
+                   .addElement("Nm", mt103.beneficiaryCustomer != null ? mt103.beneficiaryCustomer : "Unknown Creditor")
+                   .endElement() // Cdtr
+                   
+                   // Creditor Account
+                   .startElement("CdtrAcct")
+                   .startElement("Id")
+                   .startElement("Othr")
+                   .addElement("Id", "UNKNOWN")
+                   .endElement() // Othr
+                   .endElement() // Id
+                   .endElement(); // CdtrAcct
+            
+            // Add remittance information if present
+            if (mt103.remittanceInformation != null && !mt103.remittanceInformation.trim().isEmpty()) {
+                builder.startElement("RmtInf")
+                       .addElement("Ustrd", mt103.remittanceInformation)
+                       .endElement(); // RmtInf
+            }
+            
+            builder.endElement() // CdtTrfTxInf
+                   .endElement() // PmtInf
+                   .endElement() // CstmrCdtTrfInitn
+                   .endElement() // Document
+                   .endDocument();
+            
+            return builder.toString();
         }
-        
-        xml.append("      </CdtTrfTxInf>\n");
-        xml.append("    </PmtInf>\n");
-        xml.append("  </CstmrCdtTrfInitn>\n");
-        xml.append("</Document>");
-        
-        return xml.toString();
     }
 
     /**
@@ -283,25 +339,6 @@ public class MT103Converter {
         }
     }
 
-    /**
-     * Escapes special characters for XML content.
-     * <p>
-     * Replaces XML special characters with their corresponding entity references
-     * to ensure valid XML output. This is essential for preventing XML parsing
-     * errors when the MT103 data contains characters that have special meaning in XML.
-     * </p>
-     * 
-     * @param text the text to escape (may be null)
-     * @return escaped text safe for XML content, or empty string if input is null
-     */
-    private String escapeXml(String text) {
-        if (text == null) return "";
-        return text.replace("&", "&amp;")
-                  .replace("<", "&lt;")
-                  .replace(">", "&gt;")
-                  .replace("\"", "&quot;")
-                  .replace("'", "&apos;");
-    }
 
     /**
      * Internal data structure representing a parsed MT103 message.
