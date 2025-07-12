@@ -16,9 +16,12 @@
 package com.fintech.payments.converter;
 
 import com.fintech.payments.model.ConversionResult;
+import com.fintech.payments.security.SecurityUtils;
+import com.fintech.payments.security.SecureXMLBuilder;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -82,9 +85,21 @@ public class NACHAConverter {
      */
     public ConversionResult convert(File inputFile, File outputFile, Consumer<String> progressCallback) {
         try {
-            progressCallback.accept("Reading NACHA file: " + inputFile.getName());
+            progressCallback.accept("Validating input file security...");
             
-            List<String> lines = Files.readAllLines(inputFile.toPath());
+            // Validate input file path and content for security
+            Path inputPath = SecurityUtils.validateAndCanonicalizePath(inputFile.getAbsolutePath());
+            SecurityUtils.validateFileContent(inputFile);
+            
+            // Validate output file path
+            Path outputPath = SecurityUtils.validateAndCanonicalizePath(outputFile.getAbsolutePath());
+            
+            // Log security event
+            SecurityUtils.logSecurityEvent("NACHA conversion started", 
+                "Input: " + inputFile.getName() + ", Output: " + outputFile.getName());
+            
+            progressCallback.accept("Reading NACHA file: " + inputFile.getName());
+            List<String> lines = Files.readAllLines(inputPath);
             
             progressCallback.accept("Parsing NACHA records...");
             NACHABatch batch = parseNACHA(lines, progressCallback);
@@ -93,13 +108,21 @@ public class NACHAConverter {
             String iso20022Xml = convertToISO20022(batch);
             
             progressCallback.accept("Writing output file: " + outputFile.getName());
-            Files.writeString(outputFile.toPath(), iso20022Xml);
+            Files.writeString(outputPath, iso20022Xml);
+            
+            // Log successful conversion
+            SecurityUtils.logSecurityEvent("NACHA conversion completed successfully", 
+                "Output: " + outputFile.getName() + ", Records: " + batch.entryDetails.size());
             
             progressCallback.accept("Conversion completed successfully");
             return ConversionResult.success(outputFile, "NACHA", "pain.001.001.03", batch.entryDetails.size());
             
+        } catch (SecurityException e) {
+            SecurityUtils.logSecurityEvent("NACHA conversion security violation", e.getMessage());
+            return ConversionResult.failure(SecurityUtils.sanitizeErrorMessage(e.getMessage()));
         } catch (Exception e) {
-            return ConversionResult.failure("NACHA conversion error: " + e.getMessage());
+            SecurityUtils.logSecurityEvent("NACHA conversion error", e.getClass().getSimpleName());
+            return ConversionResult.failure(SecurityUtils.sanitizeErrorMessage(e.getMessage()));
         }
     }
 
