@@ -311,18 +311,19 @@ public class SecureXMLBuilder implements AutoCloseable {
             throw new SecurityException("Element name cannot be null or empty");
         }
         
-        // Check for basic XML naming rules
         String trimmed = elementName.trim();
+        
+        // Check for reserved XML names first (per XML 1.0 specification)
+        String lower = trimmed.toLowerCase();
+        if ((lower.equals("xml") || lower.equals("XML")) || lower.contains(":")) {
+            SecurityUtils.logSecurityEvent("Reserved XML element name", elementName);
+            throw new SecurityException("Reserved XML element name");
+        }
+        
+        // Check for basic XML naming rules
         if (!trimmed.matches("^[a-zA-Z_][a-zA-Z0-9._-]*$")) {
             SecurityUtils.logSecurityEvent("Invalid XML element name", elementName);
             throw new SecurityException("Invalid XML element name");
-        }
-        
-        // Check for reserved XML names
-        String lower = trimmed.toLowerCase();
-        if (lower.startsWith("xml") || lower.contains(":")) {
-            SecurityUtils.logSecurityEvent("Reserved XML element name", elementName);
-            throw new SecurityException("Reserved XML element name");
         }
     }
     
