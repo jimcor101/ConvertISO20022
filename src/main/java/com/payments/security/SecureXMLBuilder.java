@@ -318,9 +318,9 @@ public class SecureXMLBuilder implements AutoCloseable {
             throw new SecurityException("Invalid XML element name");
         }
         
-        // Check for reserved XML names
+        // Check for reserved XML names (per XML 1.0 specification)
         String lower = trimmed.toLowerCase();
-        if (lower.startsWith("xml") || lower.contains(":")) {
+        if (lower.startsWith("xml") && trimmed.length() == 3 || lower.contains(":")) {
             SecurityUtils.logSecurityEvent("Reserved XML element name", elementName);
             throw new SecurityException("Reserved XML element name");
         }
