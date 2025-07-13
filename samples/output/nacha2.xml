@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03">
+  <CstmrCdtTrfInitn>
+    <GrpHdr>
+      <MsgId>NACHA1752354190908</MsgId>
+      <CreDtTm>2025-07-12T17:03:10.908314</CreDtTm>
+      <NbOfTxs>5</NbOfTxs>
+      <CtrlSum>5000.00</CtrlSum>
+      <InitgPty>
+        <Nm>ALPHA COMPANY</Nm>
+        <Id>
+          <OrgId>
+            <Othr>
+              <Id>1234567890</Id>
+            </Othr>
+          </OrgId>
+        </Id>
+      </InitgPty>
+    </GrpHdr>
+    <PmtInf>
+      <PmtInfId>1234567890</PmtInfId>
+      <PmtMtd>TRF</PmtMtd>
+      <NbOfTxs>5</NbOfTxs>
+      <CtrlSum>5000.00</CtrlSum>
+      <ReqdExctnDt>2020-07-01</ReqdExctnDt>
+      <Dbtr>
+        <Nm>ALPHA COMPANY</Nm>
+      </Dbtr>
+      <DbtrAcct>
+        <Id>
+          <Othr>
+            <Id>02601507</Id>
+          </Othr>
+        </Id>
+      </DbtrAcct>
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>026015070000001</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="USD">1000.00</InstdAmt>
+        </Amt>
+        <Cdtr>
+          <Nm>JACK SMITH</Nm>
+        </Cdtr>
+        <CdtrAcct>
+          <Id>
+            <Othr>
+              <Id>123456789</Id>
+            </Othr>
+          </Id>
+        </CdtrAcct>
+      </CdtTrfTxInf>
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>026015070000002</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="USD">1000.00</InstdAmt>
+        </Amt>
+        <Cdtr>
+          <Nm>JACK SMITH</Nm>
+        </Cdtr>
+        <CdtrAcct>
+          <Id>
+            <Othr>
+              <Id>123456789</Id>
+            </Othr>
+          </Id>
+        </CdtrAcct>
+      </CdtTrfTxInf>
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>026015070000003</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="USD">1000.00</InstdAmt>
+        </Amt>
+        <Cdtr>
+          <Nm>JACK SMITH</Nm>
+        </Cdtr>
+        <CdtrAcct>
+          <Id>
+            <Othr>
+              <Id>123456789</Id>
+            </Othr>
+          </Id>
+        </CdtrAcct>
+      </CdtTrfTxInf>
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>026015070000101</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="USD">1000.00</InstdAmt>
+        </Amt>
+        <Cdtr>
+          <Nm>JACK SMITH</Nm>
+        </Cdtr>
+        <CdtrAcct>
+          <Id>
+            <Othr>
+              <Id>123456789</Id>
+            </Othr>
+          </Id>
+        </CdtrAcct>
+      </CdtTrfTxInf>
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>026015070000102</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="USD">1000.00</InstdAmt>
+        </Amt>
+        <Cdtr>
+          <Nm>JACK SMITH</Nm>
+        </Cdtr>
+        <CdtrAcct>
+          <Id>
+            <Othr>
+              <Id>123456789</Id>
+            </Othr>
+          </Id>
+        </CdtrAcct>
+      </CdtTrfTxInf>
+    </PmtInf>
+  </CstmrCdtTrfInitn>
+</Document>
