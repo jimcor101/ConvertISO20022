@@ -1,0 +1,22 @@
+# Build output
+target/
+*.jar
+*.war
+*.ear
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local samples and test data
+samples/
+
+# Local Claude settings
+.claude/
