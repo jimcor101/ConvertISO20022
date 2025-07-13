@@ -211,7 +211,7 @@ class SecureXMLBuilderTest {
 
         @ParameterizedTest
         @ValueSource(strings = {
-            "element with spaces",
+            "elementWithoutSpaces",
             "element-with-numbers123",
             "element_with_underscores",
             "element.with.dots"
@@ -226,12 +226,13 @@ class SecureXMLBuilderTest {
 
         @ParameterizedTest
         @ValueSource(strings = {
-            "123invalid",     // Cannot start with number
-            "-invalid",       // Cannot start with hyphen
-            ".invalid",       // Cannot start with dot
-            "invalid<>",      // Contains invalid characters
-            "invalid/slash",  // Contains slash
-            "invalid space"   // Contains space
+            "123invalid",       // Cannot start with number
+            "-invalid",         // Cannot start with hyphen
+            ".invalid",         // Cannot start with dot
+            "invalid<>",        // Contains invalid characters
+            "invalid/slash",    // Contains slash
+            "invalid space",    // Contains space
+            "element with spaces" // Contains spaces
         })
         @DisplayName("Should reject invalid XML element names")
         void shouldRejectInvalidXMLElementNames(String elementName) throws Exception {
